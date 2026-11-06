@@ -46,3 +46,7 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local Spinback settings (tools/spinback.conf.example)
+tools/spinback.conf
+__pycache__/

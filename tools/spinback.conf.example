@@ -1,0 +1,8 @@
+# Copy to tools/spinback.conf (ignored by git) and edit.
+# ~ and $HOME are expanded. Environment variables with the same names take precedence.
+
+# Folder that contains "iTunes Library.xml"
+SPINBACK_ITUNES_DIR=~/Music/iTunes
+
+# Where the converted library is written before it's pushed to the device
+SPINBACK_EXPORT_DIR=~/Spinback-export
