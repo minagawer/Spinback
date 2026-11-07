@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.Spinback" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Starts on the case color, so launching doesn't flash white (or black) first. -->
+    <style name="Theme.Spinback" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/case_color</item>
+        <item name="android:windowSplashScreenBackground">@color/case_color</item>
+    </style>
 </resources>

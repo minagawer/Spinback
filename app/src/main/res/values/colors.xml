@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The case color, shown while the app starts: silver by day, the black case at night. -->
+    <color name="case_color">#FFE3E2E4</color>
+</resources>

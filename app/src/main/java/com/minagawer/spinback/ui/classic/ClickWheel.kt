@@ -25,7 +25,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -60,7 +59,7 @@ data class BodyColors(
     val body: Brush,
     /** Shade the case darkens to at the edges of the screen. */
     val bodyEdge: Color,
-    val wheel: Brush,
+    val wheel: Color,
     val wheelEdge: Color,
     val label: Color,
     val button: Brush,
@@ -81,7 +80,7 @@ fun bodyColors(dark: Boolean) = if (dark) {
         ),
         bodyEdge = Color.Black.copy(alpha = 0.45f),
         // A flat, matte dark wheel.
-        wheel = SolidColor(Color(0xFF313131)),
+        wheel = Color(0xFF313131),
         wheelEdge = Color(0xFF1A1A1A),
         label = Color.White,
         // A dished button: dark under its upper rim, catching light toward the bottom.
@@ -104,7 +103,7 @@ fun bodyColors(dark: Boolean) = if (dark) {
         ),
         bodyEdge = Color.Black.copy(alpha = 0.18f),
         // A flat, faintly cool white wheel.
-        wheel = SolidColor(Color(0xFFF9FBFD)),
+        wheel = Color(0xFFF9FBFD),
         wheelEdge = Color(0xFFD0D1D3),
         label = Color(0xFFAFAFAF),
         // A dished button: shaded under its upper rim, lightening toward the bottom.

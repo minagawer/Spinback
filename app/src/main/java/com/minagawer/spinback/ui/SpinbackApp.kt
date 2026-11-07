@@ -1,5 +1,7 @@
 package com.minagawer.spinback.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import com.minagawer.spinback.R
 import com.minagawer.spinback.data.Library
 import com.minagawer.spinback.playback.PlayerConnection
 import com.minagawer.spinback.ui.classic.ClassicPlayer
+import com.minagawer.spinback.ui.classic.bodyColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -54,8 +57,17 @@ fun SpinbackApp(player: PlayerConnection) {
     }
 
     when (val s = state) {
-        LoadState.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+        LoadState.Loading -> {
+            // On the case color like the splash screen before it, spinning in the wheel's color.
+            val colors = bodyColors(isSystemInDarkTheme())
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(colors.body),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = colors.wheel)
+            }
         }
 
         is LoadState.Missing -> Message(
