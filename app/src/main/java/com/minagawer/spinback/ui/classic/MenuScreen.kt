@@ -46,11 +46,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.minagawer.spinback.R
 import com.minagawer.spinback.playback.PlayerConnection
 import com.minagawer.spinback.ui.Artwork
 import com.minagawer.spinback.ui.SpinbackIcons
@@ -243,7 +245,7 @@ private fun AllSongsTile(size: Dp) {
 private fun PlayingMark(selected: Boolean) {
     Icon(
         SpinbackIcons.VolumeUp,
-        "再生中",
+        stringResource(R.string.now_playing),
         Modifier
             .padding(end = 6.dp)
             .size(16.dp),

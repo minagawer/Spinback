@@ -1,7 +1,9 @@
 package com.minagawer.spinback.ui.classic
 
+import android.content.res.Resources
 import android.media.AudioManager
 import android.os.SystemClock
+import androidx.annotation.StringRes
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -10,6 +12,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.minagawer.spinback.R
 import com.minagawer.spinback.data.Album
 import com.minagawer.spinback.data.Artist
 import com.minagawer.spinback.data.Library
@@ -49,7 +52,7 @@ open class MenuPage(
 
 enum class NowPlayingMode { Progress, Volume, Scrub }
 
-class NowPlayingPage : Page("再生中") {
+class NowPlayingPage(title: String) : Page(title) {
     var mode by mutableStateOf(NowPlayingMode.Progress)
     var volume by mutableFloatStateOf(0f)
         private set
@@ -89,6 +92,7 @@ class NowPlayingPage : Page("再生中") {
 class Navigator(
     private val library: Library,
     private val player: PlayerConnection,
+    private val res: Resources,
 ) {
     private val stack = mutableStateListOf<Page>(mainMenu())
 
@@ -123,7 +127,7 @@ class Navigator(
         }
 
     fun openNowPlaying() {
-        if (current !is NowPlayingPage) stack += NowPlayingPage()
+        if (current !is NowPlayingPage) stack += NowPlayingPage(string(R.string.now_playing))
     }
 
     private fun open(page: Page) {
@@ -135,28 +139,30 @@ class Navigator(
         openNowPlaying()
     }
 
+    private fun string(@StringRes id: Int, vararg args: Any): String = res.getString(id, *args)
+
     private fun mainMenu(): MenuPage {
         val fixed = listOf(
-            MenuItem("ミュージック") { open(musicMenu()) },
-            MenuItem("よく聴いた") { open(mostPlayedMenu()) },
-            MenuItem("曲をシャッフル", opens = false) { shuffleAll() },
+            MenuItem(string(R.string.music)) { open(musicMenu()) },
+            MenuItem(string(R.string.most_played)) { open(mostPlayedMenu()) },
+            MenuItem(string(R.string.shuffle_songs), opens = false) { shuffleAll() },
         )
-        return object : MenuPage("Spinback", showArtwork = true) {
+        return object : MenuPage(string(R.string.app_name), showArtwork = true) {
             override val items: List<MenuItem>
                 get() {
                     // Shows the minutes left while the timer runs.
                     val sleepTimer = MenuItem(
-                        "スリープタイマー",
-                        detail = player.sleepMinutesLeft?.let { "${it}分" },
+                        string(R.string.sleep_timer),
+                        detail = player.sleepMinutesLeft?.let { string(R.string.minutes, it) },
                     ) { open(sleepTimerMenu()) }
-                    val nowPlaying = MenuItem("再生中") { openNowPlaying() }
+                    val nowPlaying = MenuItem(string(R.string.now_playing)) { openNowPlaying() }
                     return fixed + sleepTimer + if (player.currentTrackId != null) listOf(nowPlaying) else emptyList()
                 }
         }
     }
 
     private fun mostPlayedMenu() =
-        trackList("よく聴いた", library.mostPlayed, showPlayCount = true)
+        trackList(string(R.string.most_played), library.mostPlayed, showPlayCount = true)
 
     private fun shuffleAll() {
         if (library.songs.isNotEmpty()) play(
@@ -172,20 +178,20 @@ class Navigator(
             back()
         }
         return MenuPage(
-            "スリープタイマー",
-            listOf(option("オフ", 0)) +
-                    SLEEP_TIMER_MINUTES.map { option("${it}分", it) },
+            string(R.string.sleep_timer),
+            listOf(option(string(R.string.off), 0)) +
+                    SLEEP_TIMER_MINUTES.map { option(string(R.string.minutes, it), it) },
         )
     }
 
     private fun musicMenu() = MenuPage(
-        "ミュージック",
+        string(R.string.music),
         listOf(
-            MenuItem("プレイリスト") { open(playlistsMenu()) },
-            MenuItem("アーティスト") { open(artistsMenu()) },
-            MenuItem("アルバム") { open(albumsMenu()) },
-            MenuItem("曲") {
-                open(trackList("曲", library.songs, showArtist = true))
+            MenuItem(string(R.string.playlists)) { open(playlistsMenu()) },
+            MenuItem(string(R.string.artists)) { open(artistsMenu()) },
+            MenuItem(string(R.string.albums)) { open(albumsMenu()) },
+            MenuItem(string(R.string.songs)) {
+                open(trackList(string(R.string.songs), library.songs, showArtist = true))
             },
         ),
         // Like the main menu, the Music menu keeps the cover on the right half.
@@ -193,24 +199,24 @@ class Navigator(
     )
 
     private fun playlistsMenu() = MenuPage(
-        "プレイリスト",
+        string(R.string.playlists),
         library.playlists.map { p -> MenuItem(p.name) { open(trackList(p.name, p.tracks)) } },
     )
 
     private fun artistsMenu() = MenuPage(
-        "アーティスト",
+        string(R.string.artists),
         library.artists.map { a -> MenuItem(a.name) { open(artistMenu(a)) } },
     )
 
     // Across all albums, each is labelled with its artist; under an artist, with its size.
     private fun albumsMenu() = MenuPage(
-        "アルバム",
+        string(R.string.albums),
         library.albums.map { albumItem(it, it.artist) },
     )
 
     private fun artistMenu(artist: Artist): MenuPage {
         val allSongs = MenuItem(
-            "全曲",
+            string(R.string.all_songs),
             subtitle = songCount(artist.tracks.size),
             allSongsTile = true,
         ) { open(trackList(artist.name, artist.tracks)) }
@@ -225,7 +231,7 @@ class Navigator(
             open(trackList(album.title, album.tracks))
         }
 
-    private fun songCount(n: Int) = "$n 曲"
+    private fun songCount(n: Int) = res.getQuantityString(R.plurals.song_count, n, n)
 
     private fun trackList(
         title: String,

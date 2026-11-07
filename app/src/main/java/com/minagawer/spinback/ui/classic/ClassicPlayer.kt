@@ -41,7 +41,7 @@ private const val EDGE_STEPS = 32
 fun ClassicPlayer(library: Library, player: PlayerConnection) {
     val context = LocalContext.current
     val audio = remember { context.getSystemService(AudioManager::class.java) }
-    val navigator = remember(library) { Navigator(library, player) }
+    val navigator = remember(library) { Navigator(library, player, context.resources) }
     val clicker = remember { Clicker(context) }
     DisposableEffect(clicker) { onDispose { clicker.release() } }
     val colors = bodyColors(isSystemInDarkTheme())

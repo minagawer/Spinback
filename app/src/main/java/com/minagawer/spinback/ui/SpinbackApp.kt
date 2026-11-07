@@ -17,7 +17,9 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.minagawer.spinback.R
 import com.minagawer.spinback.data.Library
 import com.minagawer.spinback.playback.PlayerConnection
 import com.minagawer.spinback.ui.classic.ClassicPlayer
@@ -37,8 +39,14 @@ fun SpinbackApp(player: PlayerConnection) {
     val state by produceState<LoadState>(LoadState.Loading) {
         value = withContext(Dispatchers.IO) {
             val dir = context.getExternalFilesDir(null)
-                ?: return@withContext LoadState.Failed("ストレージにアクセスできません")
-            runCatching { Library.load(dir) }.fold(
+                ?: return@withContext LoadState.Failed(context.getString(R.string.storage_unavailable))
+            runCatching {
+                Library.load(
+                    dir,
+                    context.getString(R.string.unknown_artist),
+                    context.getString(R.string.unknown_album)
+                )
+            }.fold(
                 onSuccess = { it?.let(LoadState::Loaded) ?: LoadState.Missing(dir.absolutePath) },
                 onFailure = { LoadState.Failed(it.message ?: it.toString()) },
             )
@@ -51,11 +59,11 @@ fun SpinbackApp(player: PlayerConnection) {
         }
 
         is LoadState.Missing -> Message(
-            "ライブラリがまだありません",
-            "Mac で tools/push_to_device.sh を実行して、音楽を転送してください。\n\n転送先: ${s.dir}",
+            stringResource(R.string.library_missing),
+            stringResource(R.string.library_missing_detail, s.dir),
         )
 
-        is LoadState.Failed -> Message("ライブラリを読み込めませんでした", s.message)
+        is LoadState.Failed -> Message(stringResource(R.string.library_failed), s.message)
         is LoadState.Loaded -> ClassicPlayer(s.library, player)
     }
 }

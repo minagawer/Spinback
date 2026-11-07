@@ -69,21 +69,22 @@ class Library(val tracks: List<Track>, val playlists: List<Playlist>) {
     companion object {
         const val FILE_NAME = "library.json"
 
-        fun load(dir: File): Library? {
+        /** Reads the exported library in [dir], or returns null if there isn't one yet. */
+        fun load(dir: File, unknownArtist: String, unknownAlbum: String): Library? {
             val json = File(dir, FILE_NAME).takeIf { it.exists() }?.readText() ?: return null
             val root = JSONObject(json)
 
             val tracksJson = root.getJSONArray("tracks")
             val tracks = (0 until tracksJson.length()).map { i ->
                 val t = tracksJson.getJSONObject(i)
-                val artist = t.optStringOrNull("artist") ?: "不明なアーティスト"
+                val artist = t.optStringOrNull("artist") ?: unknownArtist
                 Track(
                     id = t.getString("id"),
                     name = t.getString("name"),
                     artist = artist,
                     albumArtist = t.optStringOrNull("albumArtist")
                         ?: if (t.optBoolean("compilation")) "Various Artists" else artist,
-                    album = t.optStringOrNull("album") ?: "不明なアルバム",
+                    album = t.optStringOrNull("album") ?: unknownAlbum,
                     trackNumber = t.optInt("trackNumber", 0),
                     discNumber = t.optInt("discNumber", 1),
                     durationMs = t.optLong("durationMs", 0),

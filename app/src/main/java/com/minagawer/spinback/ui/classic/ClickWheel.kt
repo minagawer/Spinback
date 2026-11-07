@@ -28,8 +28,10 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.minagawer.spinback.R
 import com.minagawer.spinback.playback.SCAN_INTERVAL_MS
 import com.minagawer.spinback.ui.SpinbackIcons
 import kotlin.math.abs
@@ -253,7 +255,7 @@ fun ClickWheel(
         )
         Icon(
             SpinbackIcons.SkipForward,
-            "次の曲",
+            stringResource(R.string.next_song),
             Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = labelInset)
@@ -262,7 +264,7 @@ fun ClickWheel(
         )
         Icon(
             SpinbackIcons.SkipBack,
-            "前の曲",
+            stringResource(R.string.previous_song),
             Modifier
                 .align(Alignment.CenterStart)
                 .padding(start = labelInset)
@@ -271,7 +273,7 @@ fun ClickWheel(
         )
         Icon(
             SpinbackIcons.PlayPause,
-            "再生・一時停止",
+            stringResource(R.string.play_pause),
             Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = labelInset)

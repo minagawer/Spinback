@@ -1,3 +1,36 @@
 <resources>
+    <plurals name="song_count">
+        <item quantity="other">%d 曲</item>
+    </plurals>
+
+    <!-- Menus -->
     <string name="app_name">Spinback</string>
+    <string name="music">ミュージック</string>
+    <string name="most_played">よく聴いた</string>
+    <string name="shuffle_songs">曲をシャッフル</string>
+    <string name="sleep_timer">スリープタイマー</string>
+    <string name="now_playing">再生中</string>
+    <string name="playlists">プレイリスト</string>
+    <string name="artists">アーティスト</string>
+    <string name="albums">アルバム</string>
+    <string name="songs">曲</string>
+    <string name="all_songs">全曲</string>
+    <string name="off">オフ</string>
+    <string name="minutes">%d分</string>
+
+    <!-- Descriptions read out by screen readers -->
+    <string name="next_song">次の曲</string>
+    <string name="previous_song">前の曲</string>
+    <string name="play_pause">再生・一時停止</string>
+    <string name="repeat">リピート</string>
+    <string name="shuffle">シャッフル</string>
+    <string name="volume">音量</string>
+
+    <!-- Library -->
+    <string name="unknown_artist">不明なアーティスト</string>
+    <string name="unknown_album">不明なアルバム</string>
+    <string name="storage_unavailable">ストレージにアクセスできません</string>
+    <string name="library_missing">ライブラリがまだありません</string>
+    <string name="library_missing_detail">Mac で tools/push_to_device.sh を実行して、音楽を転送してください。\n\n転送先: %s</string>
+    <string name="library_failed">ライブラリを読み込めませんでした</string>
 </resources>

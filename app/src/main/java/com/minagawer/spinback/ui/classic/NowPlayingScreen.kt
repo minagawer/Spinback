@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
+import com.minagawer.spinback.R
 import com.minagawer.spinback.data.Library
 import com.minagawer.spinback.data.Track
 import com.minagawer.spinback.playback.PlayerConnection
@@ -170,12 +172,12 @@ private fun ModeIcons(player: PlayerConnection, modifier: Modifier = Modifier) {
         if (player.repeatMode != Player.REPEAT_MODE_OFF) {
             val repeat =
                 if (player.repeatMode == Player.REPEAT_MODE_ONE) SpinbackIcons.RepeatOne else SpinbackIcons.Repeat
-            Icon(repeat, "リピート", Modifier.size(16.dp), tint = LcdText)
+            Icon(repeat, stringResource(R.string.repeat), Modifier.size(16.dp), tint = LcdText)
         }
         if (player.shuffle) {
             Icon(
                 SpinbackIcons.Shuffle,
-                "シャッフル",
+                stringResource(R.string.shuffle),
                 Modifier.size(16.dp),
                 tint = LcdText
             )
@@ -238,7 +240,7 @@ private fun BarRow(page: NowPlayingPage, position: Long, duration: Long, barHeig
             if (volume) {
                 Icon(
                     SpinbackIcons.VolumeDown,
-                    "音量",
+                    stringResource(R.string.volume),
                     Modifier.size(18.dp),
                     tint = LcdText
                 )
