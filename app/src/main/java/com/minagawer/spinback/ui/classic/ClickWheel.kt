@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.minagawer.spinback.playback.SCAN_INTERVAL_MS
 import com.minagawer.spinback.ui.SpinbackIcons
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -50,7 +51,6 @@ private const val HOLD_MS = 500L
 
 /** Holding MENU this long goes to the top menu; firmer, so a slow tap doesn't jump all the way home. */
 private const val MENU_HOLD_MS = 1_000L
-private const val SCAN_INTERVAL_MS = 200L
 
 data class BodyColors(
     val body: Brush,

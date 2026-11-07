@@ -110,15 +110,15 @@ class PlayerConnection(private val context: Context) : Player.Listener {
     fun seekTo(positionMs: Long) = controller?.seekTo(positionMs)
 
     /**
-     * One tick of holding ⏭ / ⏮, like an iPod: scanning speeds up the longer it is held, and
-     * running off the end carries on into the next song.
+     * One tick of holding ⏭ / ⏮, called every [SCAN_INTERVAL_MS]. Like an iPod, scanning speeds up
+     * the longer it is held, and running off the end carries on into the next song.
      */
     fun scan(forward: Boolean, heldMs: Long) {
         val c = controller ?: return
         if (c.currentMediaItem == null) return
         scanningForward = forward
         val rate = SCAN_RATES[(heldMs / 1_000).toInt().coerceIn(0, SCAN_RATES.lastIndex)]
-        val step = rate * SCAN_TICK_MS
+        val step = rate * SCAN_INTERVAL_MS
         val target = c.currentPosition + if (forward) step else -step
         when {
             target < 0 -> c.seekTo(0)
@@ -177,8 +177,8 @@ class PlayerConnection(private val context: Context) : Player.Listener {
     }
 }
 
-/** How often the wheel calls [PlayerConnection.scan] (its SCAN_INTERVAL_MS). */
-private const val SCAN_TICK_MS = 200L
+/** How often holding ⏭ / ⏮ calls [PlayerConnection.scan]. */
+const val SCAN_INTERVAL_MS = 200L
 
 /** Scan speed (x realtime) for each second of holding. */
 private val SCAN_RATES = longArrayOf(10, 14, 19, 27, 37, 40)
