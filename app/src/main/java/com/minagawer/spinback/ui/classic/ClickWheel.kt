@@ -2,12 +2,14 @@ package com.minagawer.spinback.ui.classic
 
 import android.os.SystemClock
 import android.view.HapticFeedbackConstants
+import android.view.View
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -139,156 +141,173 @@ fun ClickWheel(
     modifier: Modifier = Modifier,
 ) {
     val view = LocalView.current
-    // The gesture loop below outlives recompositions, so it must read the latest callbacks.
-    val rotate by rememberUpdatedState(onRotate)
-    val menu by rememberUpdatedState(onMenu)
-    val menuHold by rememberUpdatedState(onMenuHold)
-    val select by rememberUpdatedState(onSelect)
-    val playPause by rememberUpdatedState(onPlayPause)
-    val previous by rememberUpdatedState(onPrevious)
-    val next by rememberUpdatedState(onNext)
-    val scan by rememberUpdatedState(onScan)
-    val scanEnd by rememberUpdatedState(onScanEnd)
-    val click by rememberUpdatedState(onClick)
-    val touch by rememberUpdatedState(onTouch)
-
+    // The gesture loops outlive recompositions, so they must read the latest callbacks.
+    val actions by rememberUpdatedState(
+        WheelActions(
+            onRotate, onMenu, onMenuHold, onSelect, onPlayPause, onPrevious, onNext,
+            onScan, onScanEnd, onClick, onTouch,
+        ),
+    )
     BoxWithConstraints(
         modifier
             .clip(CircleShape)
             .background(colors.wheel)
             .border(0.5.dp, colors.wheelEdge, CircleShape)
-            // Reports the thumb resting on the wheel, whatever the gesture below makes of it.
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    awaitFirstDown(requireUnconsumed = false)
-                    touch(true)
-                    try {
-                        do {
-                            val event = awaitPointerEvent(PointerEventPass.Final)
-                        } while (event.changes.any { it.pressed })
-                    } finally {
-                        touch(false)
-                    }
-                }
-            }
-            .pointerInput(Unit) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    val center = Offset(size.width / 2f, size.height / 2f)
-                    val zone =
-                        zoneOf(down.position - center, size.width / 2f) ?: return@awaitEachGesture
-                    val scanForward = when (zone) {
-                        WheelZone.Next -> true
-                        WheelZone.Previous -> false
-                        else -> null
-                    }
-                    val rotation = Rotation(angleOf(down.position - center), down.uptimeMillis)
-
-                    var held = false
-                    var nextTickAt =
-                        down.uptimeMillis + if (zone == WheelZone.Menu) MENU_HOLD_MS else HOLD_MS
-                    while (true) {
-                        // A still finger gets no events, so wake up on a timer to notice a hold.
-                        val holdable = scanForward != null || (zone == WheelZone.Menu && !held)
-                        val event = if (holdable && rotation.travelled < HOLD_SLOP_DEGREES) {
-                            val wait = (nextTickAt - SystemClock.uptimeMillis()).coerceAtLeast(0L)
-                            withTimeoutOrNull(wait) { awaitPointerEvent() }
-                        } else {
-                            awaitPointerEvent()
-                        }
-                        if (event == null) {
-                            if (!held) {
-                                held = true
-                                click()
-                                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                            }
-                            if (scanForward == null) {
-                                menuHold()
-                            } else {
-                                scan(
-                                    scanForward,
-                                    SystemClock.uptimeMillis() - down.uptimeMillis - HOLD_MS
-                                )
-                                nextTickAt += SCAN_INTERVAL_MS
-                            }
-                            continue
-                        }
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-                        if (zone == WheelZone.Center || held) continue
-                        val steps =
-                            rotation.advance(angleOf(change.position - center), change.uptimeMillis)
-                        change.consume()
-                        if (steps != 0 && rotate(steps)) {
-                            click()
-                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        }
-                    }
-
-                    if (held && scanForward != null) scanEnd()
-                    if (!held && rotation.travelled < TAP_SLOP_DEGREES) {
-                        click()
-                        view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        when (zone) {
-                            WheelZone.Center -> select()
-                            WheelZone.Next -> next()
-                            WheelZone.Previous -> previous()
-                            WheelZone.Menu -> menu()
-                            WheelZone.PlayPause -> playPause()
-                        }
-                    }
-                }
-            },
+            .wheelTouch { actions }
+            .wheelGestures(view) { actions },
     ) {
-        val labelInset = maxWidth * 0.09f
-        // The marks are 12 units tall; this is how tall that is on this wheel.
-        val markHeight = maxWidth * 0.042f
-        Text(
-            "MENU",
-            Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = labelInset),
-            color = colors.label,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = with(LocalDensity.current) { (maxWidth * 0.004f).toSp() },
-            fontSize = with(LocalDensity.current) { (maxWidth * 0.06f).toSp() },
-        )
-        Icon(
-            SpinbackIcons.SkipForward,
-            stringResource(R.string.next_song),
-            Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = labelInset)
-                .size(width = markHeight * 22 / 12, height = markHeight),
-            tint = colors.label,
-        )
-        Icon(
-            SpinbackIcons.SkipBack,
-            stringResource(R.string.previous_song),
-            Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = labelInset)
-                .size(width = markHeight * 22 / 12, height = markHeight),
-            tint = colors.label,
-        )
-        Icon(
-            SpinbackIcons.PlayPause,
-            stringResource(R.string.play_pause),
-            Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = labelInset)
-                .size(width = markHeight * 23 / 12, height = markHeight),
-            tint = colors.label,
-        )
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .fillMaxSize(CENTER_BUTTON_RATIO)
-                .clip(CircleShape)
-                .background(colors.button)
-                .border(0.5.dp, colors.buttonEdge, CircleShape),
-        )
+        WheelFace(colors)
     }
+}
+
+/** What the wheel does when it's turned, tapped or held. */
+private class WheelActions(
+    val rotate: (steps: Int) -> Boolean,
+    val menu: () -> Unit,
+    val menuHold: () -> Unit,
+    val select: () -> Unit,
+    val playPause: () -> Unit,
+    val previous: () -> Unit,
+    val next: () -> Unit,
+    val scan: (forward: Boolean, heldMs: Long) -> Unit,
+    val scanEnd: () -> Unit,
+    val click: () -> Unit,
+    val touch: (pressed: Boolean) -> Unit,
+)
+
+/** Reports the thumb resting on the wheel, whatever the gesture handling makes of it. */
+private fun Modifier.wheelTouch(actions: () -> WheelActions) = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false)
+        actions().touch(true)
+        try {
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Final)
+            } while (event.changes.any { it.pressed })
+        } finally {
+            actions().touch(false)
+        }
+    }
+}
+
+/** Turning, tapping and holding: one gesture per touch, from the zone it starts in. */
+private fun Modifier.wheelGestures(view: View, actions: () -> WheelActions) = pointerInput(Unit) {
+    awaitEachGesture {
+        val down = awaitFirstDown()
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val zone = zoneOf(down.position - center, size.width / 2f) ?: return@awaitEachGesture
+        val scanForward = when (zone) {
+            WheelZone.Next -> true
+            WheelZone.Previous -> false
+            else -> null
+        }
+        val rotation = Rotation(angleOf(down.position - center), down.uptimeMillis)
+
+        var held = false
+        var nextTickAt = down.uptimeMillis + if (zone == WheelZone.Menu) MENU_HOLD_MS else HOLD_MS
+        while (true) {
+            // A still finger gets no events, so wake up on a timer to notice a hold.
+            val holdable = scanForward != null || (zone == WheelZone.Menu && !held)
+            val event = if (holdable && rotation.travelled < HOLD_SLOP_DEGREES) {
+                val wait = (nextTickAt - SystemClock.uptimeMillis()).coerceAtLeast(0L)
+                withTimeoutOrNull(wait) { awaitPointerEvent() }
+            } else {
+                awaitPointerEvent()
+            }
+            if (event == null) {
+                if (!held) {
+                    held = true
+                    actions().click()
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                }
+                if (scanForward == null) {
+                    actions().menuHold()
+                } else {
+                    actions().scan(
+                        scanForward,
+                        SystemClock.uptimeMillis() - down.uptimeMillis - HOLD_MS
+                    )
+                    nextTickAt += SCAN_INTERVAL_MS
+                }
+                continue
+            }
+            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+            if (!change.pressed) break
+            if (zone == WheelZone.Center || held) continue
+            val steps = rotation.advance(angleOf(change.position - center), change.uptimeMillis)
+            change.consume()
+            if (steps != 0 && actions().rotate(steps)) {
+                actions().click()
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+            }
+        }
+
+        if (held && scanForward != null) actions().scanEnd()
+        if (!held && rotation.travelled < TAP_SLOP_DEGREES) {
+            actions().click()
+            view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            when (zone) {
+                WheelZone.Center -> actions().select()
+                WheelZone.Next -> actions().next()
+                WheelZone.Previous -> actions().previous()
+                WheelZone.Menu -> actions().menu()
+                WheelZone.PlayPause -> actions().playPause()
+            }
+        }
+    }
+}
+
+/** The labels around the ring and the center button. */
+@Composable
+private fun BoxWithConstraintsScope.WheelFace(colors: BodyColors) {
+    val labelInset = maxWidth * 0.09f
+    // The marks are 12 units tall; this is how tall that is on this wheel.
+    val markHeight = maxWidth * 0.042f
+    Text(
+        "MENU",
+        Modifier
+            .align(Alignment.TopCenter)
+            .padding(top = labelInset),
+        color = colors.label,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = with(LocalDensity.current) { (maxWidth * 0.004f).toSp() },
+        fontSize = with(LocalDensity.current) { (maxWidth * 0.06f).toSp() },
+    )
+    Icon(
+        SpinbackIcons.SkipForward,
+        stringResource(R.string.next_song),
+        Modifier
+            .align(Alignment.CenterEnd)
+            .padding(end = labelInset)
+            .size(width = markHeight * 22 / 12, height = markHeight),
+        tint = colors.label,
+    )
+    Icon(
+        SpinbackIcons.SkipBack,
+        stringResource(R.string.previous_song),
+        Modifier
+            .align(Alignment.CenterStart)
+            .padding(start = labelInset)
+            .size(width = markHeight * 22 / 12, height = markHeight),
+        tint = colors.label,
+    )
+    Icon(
+        SpinbackIcons.PlayPause,
+        stringResource(R.string.play_pause),
+        Modifier
+            .align(Alignment.BottomCenter)
+            .padding(bottom = labelInset)
+            .size(width = markHeight * 23 / 12, height = markHeight),
+        tint = colors.label,
+    )
+    Box(
+        Modifier
+            .align(Alignment.Center)
+            .fillMaxSize(CENTER_BUTTON_RATIO)
+            .clip(CircleShape)
+            .background(colors.button)
+            .border(0.5.dp, colors.buttonEdge, CircleShape),
+    )
 }
 
 /** Where a touch lands: the center button, or one of the four labels around the ring. */

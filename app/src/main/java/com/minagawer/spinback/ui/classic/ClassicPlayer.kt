@@ -22,9 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.minagawer.spinback.data.Library
@@ -67,28 +64,12 @@ fun ClassicPlayer(library: Library, player: PlayerConnection) {
                     t to colors.bodyEdge.copy(alpha = colors.bodyEdge.alpha * strength * fall)
                 }
 
-                val sides = stops(EDGE_FALLOFF, 1f)
-                // The top and bottom shade hugs the edge more tightly and stays fainter.
-                val ends = stops(EDGE_FALLOFF_VERTICAL, EDGE_STRENGTH_VERTICAL)
-                val halfW = size.width / 2
-                val halfH = size.height / 2
-                drawRect(
-                    Brush.horizontalGradient(*sides, startX = 0f, endX = halfW),
-                    size = Size(halfW, size.height)
-                )
-                drawRect(
-                    Brush.horizontalGradient(*sides, startX = size.width, endX = halfW),
-                    Offset(halfW, 0f),
-                    Size(halfW, size.height),
-                )
-                drawRect(
-                    Brush.verticalGradient(*ends, startY = 0f, endY = halfH),
-                    size = Size(size.width, halfH)
-                )
-                drawRect(
-                    Brush.verticalGradient(*ends, startY = size.height, endY = halfH),
-                    Offset(0f, halfH),
-                    Size(size.width, halfH),
+                drawEdgeShade(
+                    sides = stops(EDGE_FALLOFF, 1f),
+                    sideDepth = size.width / 2,
+                    // The top and bottom shade hugs the edge more tightly and stays fainter.
+                    ends = stops(EDGE_FALLOFF_VERTICAL, EDGE_STRENGTH_VERTICAL),
+                    endDepth = size.height / 2,
                 )
             }
             .systemBarsPadding()

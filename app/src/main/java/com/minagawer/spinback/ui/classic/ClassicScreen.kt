@@ -12,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.minagawer.spinback.data.Library
@@ -42,28 +41,14 @@ fun ClassicScreen(
             // A thin shadow right at the edge all round, so the screen sits a little below the case.
             .drawWithContent {
                 drawContent()
-                val depth = LCD_SHADOW_DEPTH.toPx()
                 // Dark at the very edge, dropping off fast so it stays near the rim.
-                val fade = listOf(
-                    LcdShadow,
-                    LcdShadow.copy(alpha = LcdShadow.alpha * 0.3f),
-                    Color.Transparent
-                )
-                drawRect(Brush.horizontalGradient(fade, startX = 0f, endX = depth))
-                drawRect(
-                    Brush.horizontalGradient(
-                        fade,
-                        startX = size.width,
-                        endX = size.width - depth
-                    )
-                )
-                drawRect(Brush.verticalGradient(fade, startY = 0f, endY = depth))
-                drawRect(
-                    Brush.verticalGradient(
-                        fade,
-                        startY = size.height,
-                        endY = size.height - depth
-                    )
+                drawEdgeShade(
+                    arrayOf(
+                        0f to LcdShadow,
+                        0.5f to LcdShadow.copy(alpha = LcdShadow.alpha * 0.3f),
+                        1f to Color.Transparent,
+                    ),
+                    LCD_SHADOW_DEPTH.toPx(),
                 )
             }
             .border(1.dp, edge, shape),
