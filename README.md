@@ -106,3 +106,9 @@ python3 -m pip install pillow cryptography
 ```sh
 ./gradlew :app:testDebugUnitTest
 ```
+
+## ライセンス
+
+[MIT](LICENSE)
+
+iPod、iTunes は Apple Inc. の商標です。Spinback は Apple とは関係のない個人のプロジェクトです。
