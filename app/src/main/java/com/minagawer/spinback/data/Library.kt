@@ -77,14 +77,16 @@ class Library(val tracks: List<Track>, val playlists: List<Playlist>) {
             val tracksJson = root.getJSONArray("tracks")
             val tracks = (0 until tracksJson.length()).map { i ->
                 val t = tracksJson.getJSONObject(i)
+                val name = t.getString("name")
                 val artist = t.optStringOrNull("artist") ?: unknownArtist
+                val album = t.optStringOrNull("album") ?: unknownAlbum
                 Track(
                     id = t.getString("id"),
-                    name = t.getString("name"),
+                    name = name,
                     artist = artist,
                     albumArtist = t.optStringOrNull("albumArtist")
                         ?: if (t.optBoolean("compilation")) "Various Artists" else artist,
-                    album = t.optStringOrNull("album") ?: unknownAlbum,
+                    album = album,
                     trackNumber = t.optInt("trackNumber", 0),
                     discNumber = t.optInt("discNumber", 1),
                     durationMs = t.optLong("durationMs", 0),
@@ -92,13 +94,10 @@ class Library(val tracks: List<Track>, val playlists: List<Playlist>) {
                     lastPlayed = t.optLongOrNull("lastPlayed"),
                     file = File(dir, t.getString("file")),
                     artwork = t.optStringOrNull("artwork")?.let { File(dir, it) },
-                ).let {
-                    it.copy(
-                        sortName = t.optStringOrNull("sortName") ?: it.name,
-                        sortArtist = t.optStringOrNull("sortArtist") ?: it.artist,
-                        sortAlbum = t.optStringOrNull("sortAlbum") ?: it.album,
-                    )
-                }
+                    sortName = t.optStringOrNull("sortName") ?: name,
+                    sortArtist = t.optStringOrNull("sortArtist") ?: artist,
+                    sortAlbum = t.optStringOrNull("sortAlbum") ?: album,
+                )
             }
 
             val byId = tracks.associateBy { it.id }
