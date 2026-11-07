@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -138,19 +139,7 @@ internal fun NowPlayingScreen(page: NowPlayingPage, library: Library, player: Pl
         val reflectionHeight =
             maxHeight - ART_TOP - artSize - BAR_ROW_BOTTOM - barHeight * BAR_REFLECTION_RATIO + REFLECTION_OVERSHOOT
         val titleSize = with(LocalDensity.current) { (maxHeight * 0.075f).toSp() }
-        Row(
-            Modifier.align(Alignment.TopEnd),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            if (player.repeatMode != Player.REPEAT_MODE_OFF) {
-                val repeat =
-                    if (player.repeatMode == Player.REPEAT_MODE_ONE) SpinbackIcons.RepeatOne else SpinbackIcons.Repeat
-                Icon(repeat, "リピート", Modifier.size(16.dp), tint = LcdText)
-            }
-            if (player.shuffle) {
-                Icon(SpinbackIcons.Shuffle, "シャッフル", Modifier.size(16.dp), tint = LcdText)
-            }
-        }
+        ModeIcons(player, Modifier.align(Alignment.TopEnd))
         Column(Modifier.fillMaxSize()) {
             Row(
                 Modifier
@@ -167,90 +156,117 @@ internal fun NowPlayingScreen(page: NowPlayingPage, library: Library, player: Pl
                     fadedAt = reflectionHeight - REFLECTION_OVERSHOOT - barHeight - 4.dp,
                 )
                 Spacer(Modifier.width(12.dp))
-                Column(Modifier.height(artSize)) {
-                    Spacer(Modifier.height(artSize * 0.15f))
-                    Text(
-                        track.name,
-                        Modifier.basicMarquee(
-                            iterations = Int.MAX_VALUE,
-                            initialDelayMillis = 2_000,
-                            spacing = MarqueeSpacing(32.dp),
-                        ),
-                        color = LcdText,
-                        fontSize = titleSize,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                    )
-                    Text(
-                        track.artist,
-                        color = SongDetail,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        track.album,
-                        color = SongDetail,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    // Where the star rating would go.
-                    Spacer(Modifier.height(22.dp))
-                    Text(
-                        "${player.queueIndex + 1} / ${player.queueSize}",
-                        color = SongDetail,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
+                SongInfo(track, player, artSize, titleSize)
             }
-            // The volume bar takes the progress bar's exact place: the same row, with fixed-width
-            // slots either side for the times or the speaker icons, both hugging the bar.
-            val volume = page.mode == NowPlayingMode.Volume
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = BAR_ROW_BOTTOM),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.width(BAR_SIDE_SLOT), contentAlignment = Alignment.CenterEnd) {
-                    if (volume) {
-                        Icon(SpinbackIcons.VolumeDown, "音量", Modifier.size(18.dp), tint = LcdText)
-                    } else {
-                        Text(
-                            formatTime(position),
-                            color = LcdText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-                Bar(
-                    if (volume) page.volume else if (duration > 0) position.toFloat() / duration else 0f,
-                    scrubbing = page.mode == NowPlayingMode.Scrub,
-                    barHeight = barHeight,
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 8.dp),
+            BarRow(page, position, duration, barHeight)
+        }
+    }
+}
+
+/** Shuffle and repeat, in the top corner while they're on. */
+@Composable
+private fun ModeIcons(player: PlayerConnection, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (player.repeatMode != Player.REPEAT_MODE_OFF) {
+            val repeat =
+                if (player.repeatMode == Player.REPEAT_MODE_ONE) SpinbackIcons.RepeatOne else SpinbackIcons.Repeat
+            Icon(repeat, "リピート", Modifier.size(16.dp), tint = LcdText)
+        }
+        if (player.shuffle) {
+            Icon(
+                SpinbackIcons.Shuffle,
+                "シャッフル",
+                Modifier.size(16.dp),
+                tint = LcdText
+            )
+        }
+    }
+}
+
+/** Title, artist and album beside the cover, with the song's place in the queue below. */
+@Composable
+private fun SongInfo(track: Track, player: PlayerConnection, artSize: Dp, titleSize: TextUnit) {
+    Column(Modifier.height(artSize)) {
+        Spacer(Modifier.height(artSize * 0.15f))
+        Text(
+            track.name,
+            Modifier.basicMarquee(
+                iterations = Int.MAX_VALUE,
+                initialDelayMillis = 2_000,
+                spacing = MarqueeSpacing(32.dp),
+            ),
+            color = LcdText,
+            fontSize = titleSize,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+        DetailText(track.artist)
+        DetailText(track.album)
+        // Where the star rating would go.
+        Spacer(Modifier.height(22.dp))
+        DetailText("${player.queueIndex + 1} / ${player.queueSize}")
+    }
+}
+
+@Composable
+private fun DetailText(text: String) {
+    Text(
+        text,
+        color = SongDetail,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+/**
+ * The progress bar with the elapsed and remaining times, or, while the wheel adjusts it, the
+ * volume bar between two speakers. Both use the same row and fixed-width slots either side, so the
+ * bar never moves when one replaces the other.
+ */
+@Composable
+private fun BarRow(page: NowPlayingPage, position: Long, duration: Long, barHeight: Dp) {
+    val volume = page.mode == NowPlayingMode.Volume
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = BAR_ROW_BOTTOM),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(BAR_SIDE_SLOT), contentAlignment = Alignment.CenterEnd) {
+            if (volume) {
+                Icon(
+                    SpinbackIcons.VolumeDown,
+                    "音量",
+                    Modifier.size(18.dp),
+                    tint = LcdText
                 )
-                Box(Modifier.width(BAR_SIDE_SLOT), contentAlignment = Alignment.CenterStart) {
-                    if (volume) {
-                        Icon(SpinbackIcons.VolumeUp, null, Modifier.size(18.dp), tint = LcdText)
-                    } else {
-                        Text(
-                            "-" + formatTime((duration - position).coerceAtLeast(0)),
-                            color = LcdText,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
+            } else {
+                TimeText(formatTime(position))
+            }
+        }
+        Bar(
+            if (volume) page.volume else if (duration > 0) position.toFloat() / duration else 0f,
+            scrubbing = page.mode == NowPlayingMode.Scrub,
+            barHeight = barHeight,
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 8.dp),
+        )
+        Box(Modifier.width(BAR_SIDE_SLOT), contentAlignment = Alignment.CenterStart) {
+            if (volume) {
+                Icon(SpinbackIcons.VolumeUp, null, Modifier.size(18.dp), tint = LcdText)
+            } else {
+                TimeText("-" + formatTime((duration - position).coerceAtLeast(0)))
             }
         }
     }
+}
+
+@Composable
+private fun TimeText(text: String) {
+    Text(text, color = LcdText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
 }
 
 /** The cover, a little wide and turned away, standing on a faded mirror image of itself. */

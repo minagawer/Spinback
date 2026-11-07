@@ -18,6 +18,7 @@ import com.minagawer.spinback.playback.PlayerConnection
 import kotlin.math.abs
 
 private const val SCRUB_STEP_MS = 5_000L
+private val SLEEP_TIMER_MINUTES = listOf(15, 30, 60, 90, 120)
 
 data class MenuItem(
     val label: String,
@@ -75,11 +76,7 @@ class NowPlayingPage : Page("再生中") {
             val before = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
             val direction = if (steps > 0) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
             repeat(abs(steps).coerceAtMost(2)) {
-                audio.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    direction,
-                    0
-                )
+                audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, 0)
             }
             val after = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
             volume = after.toFloat() / audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
@@ -89,7 +86,10 @@ class NowPlayingPage : Page("再生中") {
 }
 
 /** The iPod-style menu stack: MENU goes back, the center button selects. */
-class Navigator(private val library: Library, private val player: PlayerConnection) {
+class Navigator(
+    private val library: Library,
+    private val player: PlayerConnection,
+) {
     private val stack = mutableStateListOf<Page>(mainMenu())
 
     val current: Page get() = stack.last()
@@ -136,24 +136,10 @@ class Navigator(private val library: Library, private val player: PlayerConnecti
     }
 
     private fun mainMenu(): MenuPage {
-        val base = listOf(
+        val fixed = listOf(
             MenuItem("ミュージック") { open(musicMenu()) },
-            MenuItem("よく聴いた") {
-                open(
-                    trackList(
-                        "よく聴いた",
-                        library.mostPlayed,
-                        showPlayCount = true
-                    )
-                )
-            },
-            MenuItem("曲をシャッフル", opens = false) {
-                if (library.songs.isNotEmpty()) play(
-                    library.songs,
-                    library.songs.indices.random(),
-                    shuffled = true
-                )
-            },
+            MenuItem("よく聴いた") { open(mostPlayedMenu()) },
+            MenuItem("曲をシャッフル", opens = false) { shuffleAll() },
         )
         return object : MenuPage("Spinback", showArtwork = true) {
             override val items: List<MenuItem>
@@ -164,87 +150,79 @@ class Navigator(private val library: Library, private val player: PlayerConnecti
                         detail = player.sleepMinutesLeft?.let { "${it}分" },
                     ) { open(sleepTimerMenu()) }
                     val nowPlaying = MenuItem("再生中") { openNowPlaying() }
-                    return base + sleepTimer + if (player.currentTrackId != null) listOf(nowPlaying) else emptyList()
+                    return fixed + sleepTimer + if (player.currentTrackId != null) listOf(nowPlaying) else emptyList()
                 }
         }
     }
 
-    private fun sleepTimerMenu() = MenuPage(
-        "スリープタイマー",
-        listOf(0, 15, 30, 60, 90, 120).map { minutes ->
-            MenuItem(if (minutes == 0) "オフ" else "${minutes}分", opens = false) {
-                player.setSleepTimer(minutes)
-                back()
-            }
-        },
-    )
+    private fun mostPlayedMenu() =
+        trackList("よく聴いた", library.mostPlayed, showPlayCount = true)
+
+    private fun shuffleAll() {
+        if (library.songs.isNotEmpty()) play(
+            library.songs,
+            library.songs.indices.random(),
+            shuffled = true
+        )
+    }
+
+    private fun sleepTimerMenu(): MenuPage {
+        fun option(label: String, minutes: Int) = MenuItem(label, opens = false) {
+            player.setSleepTimer(minutes)
+            back()
+        }
+        return MenuPage(
+            "スリープタイマー",
+            listOf(option("オフ", 0)) +
+                    SLEEP_TIMER_MINUTES.map { option("${it}分", it) },
+        )
+    }
 
     private fun musicMenu() = MenuPage(
         "ミュージック",
         listOf(
-            MenuItem("プレイリスト") {
-                open(
-                    MenuPage(
-                        "プレイリスト",
-                        library.playlists.map { p ->
-                            MenuItem(p.name) {
-                                open(
-                                    trackList(
-                                        p.name,
-                                        p.tracks
-                                    )
-                                )
-                            }
-                        })
-                )
+            MenuItem("プレイリスト") { open(playlistsMenu()) },
+            MenuItem("アーティスト") { open(artistsMenu()) },
+            MenuItem("アルバム") { open(albumsMenu()) },
+            MenuItem("曲") {
+                open(trackList("曲", library.songs, showArtist = true))
             },
-            MenuItem("アーティスト") {
-                open(
-                    MenuPage(
-                        "アーティスト",
-                        library.artists.map { a -> MenuItem(a.name) { open(artistMenu(a)) } })
-                )
-            },
-            // Across all albums, each is labelled with its artist; under an artist, with its size.
-            MenuItem("アルバム") {
-                open(
-                    MenuPage(
-                        "アルバム",
-                        library.albums.map { albumItem(it, it.artist) })
-                )
-            },
-            MenuItem("曲") { open(trackList("曲", library.songs, showArtist = true)) },
         ),
         // Like the main menu, the Music menu keeps the cover on the right half.
         showArtwork = true,
     )
 
-    private fun artistMenu(artist: Artist) = MenuPage(
-        artist.name,
-        listOf(
-            MenuItem("全曲", subtitle = songCount(artist.tracks.size), allSongsTile = true) {
-                open(
-                    trackList(
-                        artist.name,
-                        artist.tracks
-                    )
-                )
-            },
-        ) + artist.albums.map { albumItem(it, songCount(it.tracks.size)) },
+    private fun playlistsMenu() = MenuPage(
+        "プレイリスト",
+        library.playlists.map { p -> MenuItem(p.name) { open(trackList(p.name, p.tracks)) } },
     )
 
+    private fun artistsMenu() = MenuPage(
+        "アーティスト",
+        library.artists.map { a -> MenuItem(a.name) { open(artistMenu(a)) } },
+    )
+
+    // Across all albums, each is labelled with its artist; under an artist, with its size.
+    private fun albumsMenu() = MenuPage(
+        "アルバム",
+        library.albums.map { albumItem(it, it.artist) },
+    )
+
+    private fun artistMenu(artist: Artist): MenuPage {
+        val allSongs = MenuItem(
+            "全曲",
+            subtitle = songCount(artist.tracks.size),
+            allSongsTile = true,
+        ) { open(trackList(artist.name, artist.tracks)) }
+        return MenuPage(
+            artist.name,
+            listOf(allSongs) + artist.albums.map { albumItem(it, songCount(it.tracks.size)) },
+        )
+    }
+
     private fun albumItem(album: Album, subtitle: String) =
-        MenuItem(
-            album.title,
-            subtitle = subtitle,
-            artwork = album.tracks.first()
-        ) {
-            open(
-                trackList(
-                    album.title,
-                    album.tracks
-                )
-            )
+        MenuItem(album.title, subtitle = subtitle, artwork = album.tracks.first()) {
+            open(trackList(album.title, album.tracks))
         }
 
     private fun songCount(n: Int) = "$n 曲"
@@ -254,19 +232,16 @@ class Navigator(private val library: Library, private val player: PlayerConnecti
         tracks: List<Track>,
         showPlayCount: Boolean = false,
         showArtist: Boolean = false,
-    ) =
-        MenuPage(
-            title,
-            tracks.mapIndexed { i, track ->
-                MenuItem(
-                    track.name,
-                    detail = if (showPlayCount) "${track.playCount}" else null,
-                    subtitle = if (showArtist) track.artist else null,
-                    opens = false,
-                    trackId = track.id,
-                ) {
-                    play(tracks, i)
-                }
-            },
-        )
+    ) = MenuPage(
+        title,
+        tracks.mapIndexed { i, track ->
+            MenuItem(
+                track.name,
+                detail = if (showPlayCount) "${track.playCount}" else null,
+                subtitle = if (showArtist) track.artist else null,
+                opens = false,
+                trackId = track.id,
+            ) { play(tracks, i) }
+        },
+    )
 }

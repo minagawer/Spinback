@@ -173,30 +173,23 @@ fun ClickWheel(
                 awaitEachGesture {
                     val down = awaitFirstDown()
                     val center = Offset(size.width / 2f, size.height / 2f)
-                    val radius = size.width / 2f
-                    val start = down.position - center
-                    if (start.getDistance() > radius) return@awaitEachGesture
-                    val onButton = start.getDistance() < radius * CENTER_BUTTON_RATIO
-                    val startAngle = angleOf(start)
-                    val scanForward = when {
-                        onButton -> null
-                        startAngle in -45f..45f -> true
-                        startAngle in 135f..180f || startAngle in -180f..-135f -> false
+                    val zone =
+                        zoneOf(down.position - center, size.width / 2f) ?: return@awaitEachGesture
+                    val scanForward = when (zone) {
+                        WheelZone.Next -> true
+                        WheelZone.Previous -> false
                         else -> null
                     }
-                    val onMenuButton = !onButton && startAngle in -135f..-45f
+                    val rotation = Rotation(angleOf(down.position - center), down.uptimeMillis)
 
                     var held = false
-                    var nextScanAt = down.uptimeMillis + if (onMenuButton) MENU_HOLD_MS else HOLD_MS
-                    var lastAngle = angleOf(start)
-                    var lastTime = down.uptimeMillis
-                    var pending = 0f
-                    var travelled = 0f
+                    var nextTickAt =
+                        down.uptimeMillis + if (zone == WheelZone.Menu) MENU_HOLD_MS else HOLD_MS
                     while (true) {
                         // A still finger gets no events, so wake up on a timer to notice a hold.
-                        val holdable = scanForward != null || (onMenuButton && !held)
-                        val event = if (holdable && travelled < HOLD_SLOP_DEGREES) {
-                            val wait = (nextScanAt - SystemClock.uptimeMillis()).coerceAtLeast(0L)
+                        val holdable = scanForward != null || (zone == WheelZone.Menu && !held)
+                        val event = if (holdable && rotation.travelled < HOLD_SLOP_DEGREES) {
+                            val wait = (nextTickAt - SystemClock.uptimeMillis()).coerceAtLeast(0L)
                             withTimeoutOrNull(wait) { awaitPointerEvent() }
                         } else {
                             awaitPointerEvent()
@@ -214,48 +207,32 @@ fun ClickWheel(
                                     scanForward,
                                     SystemClock.uptimeMillis() - down.uptimeMillis - HOLD_MS
                                 )
-                                nextScanAt += SCAN_INTERVAL_MS
+                                nextTickAt += SCAN_INTERVAL_MS
                             }
                             continue
                         }
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) break
-                        if (onButton || held) continue
-                        val angle = angleOf(change.position - center)
-                        val delta = (angle - lastAngle + 540f) % 360f - 180f
-                        val speed = abs(delta) / (change.uptimeMillis - lastTime).coerceAtLeast(1L)
-                        lastAngle = angle
-                        lastTime = change.uptimeMillis
-                        travelled += abs(delta)
-                        pending += delta
+                        if (zone == WheelZone.Center || held) continue
+                        val steps =
+                            rotation.advance(angleOf(change.position - center), change.uptimeMillis)
                         change.consume()
-
-                        val steps = (pending / STEP_DEGREES).toInt()
-                        if (steps != 0) {
-                            pending -= steps * STEP_DEGREES
-                            // Spinning fast jumps further, so long song lists stay usable.
-                            val boost = when {
-                                speed > 1.2f -> 6
-                                speed > 0.6f -> 2
-                                else -> 1
-                            }
-                            if (rotate(steps * boost)) {
-                                click()
-                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                            }
+                        if (steps != 0 && rotate(steps)) {
+                            click()
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
                         }
                     }
 
                     if (held && scanForward != null) scanEnd()
-                    if (!held && travelled < TAP_SLOP_DEGREES) {
+                    if (!held && rotation.travelled < TAP_SLOP_DEGREES) {
                         click()
                         view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                        when {
-                            onButton -> select()
-                            scanForward == true -> next()
-                            scanForward == false -> previous()
-                            onMenuButton -> menu()
-                            else -> playPause()
+                        when (zone) {
+                            WheelZone.Center -> select()
+                            WheelZone.Next -> next()
+                            WheelZone.Previous -> previous()
+                            WheelZone.Menu -> menu()
+                            WheelZone.PlayPause -> playPause()
                         }
                     }
                 }
@@ -312,5 +289,51 @@ fun ClickWheel(
     }
 }
 
-private fun angleOf(offset: Offset): Float =
+/** Where a touch lands: the center button, or one of the four labels around the ring. */
+internal enum class WheelZone { Center, Menu, Next, PlayPause, Previous }
+
+/** The zone at [offset] from the center of a wheel of [radius], or null off the wheel. */
+internal fun zoneOf(offset: Offset, radius: Float): WheelZone? {
+    val distance = offset.getDistance()
+    if (distance > radius) return null
+    if (distance < radius * CENTER_BUTTON_RATIO) return WheelZone.Center
+    val angle = angleOf(offset)
+    return when {
+        angle in -45f..45f -> WheelZone.Next
+        angle in 135f..180f || angle in -180f..-135f -> WheelZone.Previous
+        angle in -135f..-45f -> WheelZone.Menu
+        else -> WheelZone.PlayPause
+    }
+}
+
+/** Turns a finger going round the wheel into menu steps; spinning fast jumps further. */
+internal class Rotation(private var lastAngle: Float, private var lastTime: Long) {
+    private var pending = 0f
+
+    /** Degrees turned so far, either way. */
+    var travelled = 0f
+        private set
+
+    /** Feeds the finger's latest angle and returns how many steps to move (0 until a full step). */
+    fun advance(angle: Float, time: Long): Int {
+        val delta = (angle - lastAngle + 540f) % 360f - 180f
+        val speed = abs(delta) / (time - lastTime).coerceAtLeast(1L)
+        lastAngle = angle
+        lastTime = time
+        travelled += abs(delta)
+        pending += delta
+        val steps = (pending / STEP_DEGREES).toInt()
+        if (steps == 0) return 0
+        pending -= steps * STEP_DEGREES
+        // Spinning fast jumps further, so long song lists stay usable.
+        val boost = when {
+            speed > 1.2f -> 6
+            speed > 0.6f -> 2
+            else -> 1
+        }
+        return steps * boost
+    }
+}
+
+internal fun angleOf(offset: Offset): Float =
     Math.toDegrees(atan2(offset.y, offset.x).toDouble()).toFloat()
