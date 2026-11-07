@@ -3,6 +3,10 @@ package com.minagawer.spinback.playback
 import android.content.ComponentName
 import android.content.Context
 import android.net.Uri
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -12,6 +16,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
+import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.minagawer.spinback.data.Track
@@ -40,23 +45,44 @@ class PlayerConnection(private val context: Context) : Player.Listener {
     var scanningForward by mutableStateOf<Boolean?>(null)
         private set
 
+    /** Whole minutes (rounded up) until the sleep timer pauses playback, or null when it's off. */
+    var sleepMinutesLeft by mutableStateOf<Int?>(null)
+        private set
+    private var sleepEndsAt: Long? = null
+    private val ticker = Handler(Looper.getMainLooper())
+    private val tick = object : Runnable {
+        override fun run() {
+            val endsAt = sleepEndsAt ?: return
+            val left = endsAt - SystemClock.elapsedRealtime()
+            sleepMinutesLeft = if (left > 0) ((left + 59_999) / 60_000).toInt() else null
+            if (left > 0) ticker.postDelayed(this, 10_000)
+        }
+    }
+
     val positionMs: Long get() = controller?.currentPosition ?: 0L
 
     fun connect() {
         if (future != null) return
         val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
-        val f = MediaController.Builder(context, token).buildAsync()
+        val f = MediaController.Builder(context, token)
+            .setListener(object : MediaController.Listener {
+                override fun onExtrasChanged(controller: MediaController, extras: Bundle) =
+                    syncSleep(extras)
+            })
+            .buildAsync()
         future = f
         f.addListener({
             if (future !== f) return@addListener
             controller = f.get().also {
                 it.addListener(this)
                 sync(it)
+                syncSleep(it.sessionExtras)
             }
         }, ContextCompat.getMainExecutor(context))
     }
 
     fun release() {
+        ticker.removeCallbacks(tick)
         controller?.removeListener(this)
         future?.let { MediaController.releaseFuture(it) }
         future = null
@@ -103,6 +129,21 @@ class PlayerConnection(private val context: Context) : Player.Listener {
 
     fun endScan() {
         scanningForward = null
+    }
+
+    /** Pauses playback after [minutes]; 0 turns the timer off. */
+    fun setSleepTimer(minutes: Int) {
+        controller?.sendCustomCommand(
+            SessionCommand(SET_SLEEP_TIMER, Bundle.EMPTY),
+            Bundle().apply { putInt(SLEEP_MINUTES, minutes) },
+        )
+    }
+
+    private fun syncSleep(extras: Bundle) {
+        ticker.removeCallbacks(tick)
+        sleepEndsAt = extras.getLong(SLEEP_ENDS_AT, 0L).takeIf { it > 0 }
+        sleepMinutesLeft = null
+        tick.run()
     }
 
     fun toggleShuffle() {

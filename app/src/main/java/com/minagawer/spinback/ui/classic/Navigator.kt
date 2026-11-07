@@ -155,11 +155,29 @@ class Navigator(private val library: Library, private val player: PlayerConnecti
                 )
             },
         )
-        val withNowPlaying = base + MenuItem("再生中") { openNowPlaying() }
         return object : MenuPage("Spinback", showArtwork = true) {
-            override val items get() = if (player.currentTrackId != null) withNowPlaying else base
+            override val items: List<MenuItem>
+                get() {
+                    // Shows the minutes left while the timer runs.
+                    val sleepTimer = MenuItem(
+                        "スリープタイマー",
+                        detail = player.sleepMinutesLeft?.let { "${it}分" },
+                    ) { open(sleepTimerMenu()) }
+                    val nowPlaying = MenuItem("再生中") { openNowPlaying() }
+                    return base + sleepTimer + if (player.currentTrackId != null) listOf(nowPlaying) else emptyList()
+                }
         }
     }
+
+    private fun sleepTimerMenu() = MenuPage(
+        "スリープタイマー",
+        listOf(0, 15, 30, 60, 90, 120).map { minutes ->
+            MenuItem(if (minutes == 0) "オフ" else "${minutes}分", opens = false) {
+                player.setSleepTimer(minutes)
+                back()
+            }
+        },
+    )
 
     private fun musicMenu() = MenuPage(
         "ミュージック",
