@@ -1,12 +1,18 @@
-# Spinback
+<div align="center">
+  <img src="docs/icon.png" width="120" alt="Spinback のアイコン" />
 
-昔の iTunes ライブラリを、iPod classic で聴いていた頃の画面と操作のまま、Android で聴くための音楽プレーヤーです。
+  # Spinback
+
+  **昔の iTunes ライブラリを、iPod classic の画面と操作で聴く Android 音楽プレーヤー**
+
+  ![Android](https://img.shields.io/badge/Android-15%2B-3DDC84?logo=android&logoColor=white)
+  ![Kotlin](https://img.shields.io/badge/Kotlin-2.2-7F52FF?logo=kotlin&logoColor=white)
+  ![License](https://img.shields.io/badge/License-MIT-blue)
+
+  <img src="docs/demo.gif" width="240" alt="ホイールでアーティストからアルバム、曲を選んで再生し、音量とシークを操作する様子" />
+</div>
 
 音楽はストリーミングではなく、Mac の iTunes フォルダから書き出して、USB で端末にコピーします。再生回数、プレイリスト、当時のジャケットも一緒に持っていけます。
-
-<p align="center">
-  <img src="docs/demo.gif" width="240" alt="ホイールでアーティストからアルバム、曲を選んで再生し、音量とシークを操作する様子">
-</p>
 
 ## 特徴
 
