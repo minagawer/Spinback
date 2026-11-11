@@ -37,7 +37,7 @@
   - Python 3.10 以上
   - [Pillow](https://pypi.org/project/pillow/) と [cryptography](https://pypi.org/project/cryptography/)（ジャケットの取り出し用。なくても動きますが、ジャケットは曲ファイルに埋め込まれたものだけになります）
   - [ffmpeg](https://ffmpeg.org/)（Apple ロスレスの曲がある場合）
-  - adb（Android SDK Platform-Tools）
+  - adb（Android Studio に含まれる Android SDK Platform-Tools）
 - `iTunes Library.xml` が入った iTunes フォルダ
 
 ```sh
@@ -60,7 +60,7 @@ python3 -m pip install pillow cryptography
 
    同じ名前の環境変数や、スクリプトのオプション（`--itunes`、`--out`）でも指定できます。
 
-2. アプリを端末にインストールし、一度起動します。Android Studio から実行するか、次のコマンドでインストールできます。
+2. アプリを端末にインストールし、一度起動します。曲を置く保存領域は、最初の起動で作られます。Android Studio から実行するか、次のコマンドでインストールできます。
 
    ```sh
    ./gradlew installDebug
@@ -89,7 +89,7 @@ python3 -m pip install pillow cryptography
 - **曲ファイル**: AAC と MP3 は元のファイルへのハードリンクなので、ディスクを余分に使わず、音質も変わりません。
 - **Apple ロスレス**: Android は ALAC を再生できないため、ffmpeg で変換します。
   - FLAC: ロスレスのまま変換します。音声データは元とビット単位で一致します
-  - AAC: AAC 256kbps に変換します。容量は FLAC の約 1/4 です
+  - AAC: 256kbps に変換します。容量は FLAC の約 1/4 です
 - **ジャケット**: iTunes はジャケットの多くを、曲ファイルではなく `Album Artwork` フォルダの `.itc` / `.itc2` ファイルに保存しています。曲とジャケットの対応は、暗号化された `iTunes Library.itl` に記録されています。これを読んで、アルバムごとに一番大きい画像を書き出します（iTunes 11 以降の形式に対応）。
 - Podcast と動画は書き出しません（Podcast は `--include-podcasts` で含められます）。
 
@@ -103,9 +103,7 @@ python3 -m pip install pillow cryptography
   - ただし、残した曲は自動では消えず、ファイルアプリからも見えないまま容量を使い続けます。もう使わない場合はチェックを入れずにアンインストールするか、入れ直してからチェックなしでアンインストールしてください。Mac からは `adb shell rm -rf /sdcard/Android/data/com.minagawer.spinback` でも消せます。
 - 複数の端末をつないでいるときは、`ANDROID_SERIAL=<シリアル番号> ./tools/push_to_device.sh` で転送先を選びます。
 
-## 開発
-
-並び順のテストは、端末なしで実行できます。
+## テスト
 
 ```sh
 ./gradlew :app:testDebugUnitTest
